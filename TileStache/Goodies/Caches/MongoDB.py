@@ -2,6 +2,7 @@ import sys
 
 try:
     from pymongo import MongoClient
+    from bson.binary import Binary
 except ImportError:
     # at least we can build the documentation
     pass
@@ -22,12 +23,12 @@ class Cache:
         self.conn = MongoClient(host, port)
 
     def lock(self, layer, coord, format):
-        sys.stderr.write('lock %d/%d/%d, %s' % (coord.zoom, coord.column,
-                                                coord.row, format))
+        sys.stderr.write('lock %d/%d/%d, %s\n' % (coord.zoom, coord.column,
+                                                  coord.row, format))
 
     def unlock(self, layer, coord, format):
-        sys.stderr.write('unlock %d/%d/%d, %s' % (coord.zoom, coord.column,
-                                                  coord.row, format))
+        sys.stderr.write('unlock %d/%d/%d, %s\n' % (coord.zoom, coord.column,
+                                                    coord.row, format))
 
     def remove(self, layer, coord, format):
         """ Remove a cached tile.
@@ -39,25 +40,22 @@ class Cache:
     def read(self, layer, coord, format):
         """ Read a cached tile.
         """
-        sys.stderr.write('read %d/%d/%d, %s' % (coord.zoom, coord.column,
-                                                coord.row, format))
+        sys.stderr.write('read %d/%d/%d, %s\n' % (coord.zoom, coord.column,
+                                                  coord.row, format))
         key = tile_key(layer, coord, format)
         item = self.conn.cache.tiles.find_one({'_id': key})
 
         if item:
-            sys.stderr.write('...hit')
+            sys.stderr.write('...hit\n')
             return item['buffer']
 
-        sys.stderr.write('...miss')
+        sys.stderr.write('...miss\n')
         return None
 
     def save(self, body, layer, coord, format):
         """
         """
-        sys.stderr.write('save %d/%d/%d, %s' % (coord.zoom, coord.column,
+        sys.stderr.write('save %d/%d/%d, %s\n' % (coord.zoom, coord.column,
                                                 coord.row, format))
         key = tile_key(layer, coord, format)
-        self.conn.cache.tiles.update({
-            '_id': key,
-            'buffer': body
-        }, upsert=True)
+        self.conn.cache.tiles.update_one({'_id': key}, {'$set': {'buffer': Binary(body)}}, upsert=True)
