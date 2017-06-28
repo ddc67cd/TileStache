@@ -51,9 +51,11 @@ import logging
 try:
     from json import load as json_load
     from json import loads as json_loads
+    from json import dumps as json_dumps
 except ImportError:
     from simplejson import load as json_load
     from simplejson import loads as json_loads
+    from simplejson import dumps as json_dumps
 
 from ModestMaps.Core import Coordinate
 
@@ -120,7 +122,7 @@ def parseConfig(configHandle):
         dirpath = '.'
     else:
         scheme, host, path, p, q, f = urlparse(configHandle)
-        
+
         if scheme == '':
             scheme = 'file'
             path = realpath(path)
@@ -144,6 +146,8 @@ def splitPathInfo(pathinfo):
         Example: "/layer/0/0/0.png", leading "/" optional.
     """
     if pathinfo == '/':
+        return None, None, None
+    elif pathinfo == '/health':
         return None, None, None
 
     if _pathinfo_pat.match(pathinfo or ''):
@@ -204,7 +208,7 @@ def requestLayer(config, path_info):
     # ensure that path_info is at least a single "/"
     path_info = '/' + (path_info or '').lstrip('/')
 
-    if path_info == '/':
+    if path_info == '/' or path_info == '/health':
         return Core.Layer(config, None, None)
 
     layername = splitPathInfo(path_info)[0]
@@ -262,6 +266,20 @@ def requestHandler2(config_hint, path_info, query_string=None, script_name=''):
         if path_info == '/':
             mimetype, content = getattr(layer.config, 'index', ('text/plain', 'TileStache says hello.'))
             return 200, Headers([('Content-Type', mimetype)]), content
+        elif path_info == '/health':
+            data = {
+                'ok': True,
+                'balancer': {
+                    'status': 'connected'
+                },
+                'version': '1.0',
+                'host': 'host',
+                'uptime': 1,
+                'uptime_s': 1
+            }
+
+            return 200, Headers([
+                ('Content-Type', 'application/json')]), json_dumps(data)
 
         coord, extension = splitPathInfo(path_info)[1:]
 
